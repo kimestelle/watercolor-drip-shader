@@ -200,8 +200,8 @@ export default function DripCanvas({
       gl.bindTexture(gl.TEXTURE_2D, texARef.current);
       gl.uniform1i(gl.getUniformLocation(simProg, "u_tex"), 0);
       gl.uniform2f(gl.getUniformLocation(simProg, "u_px"), 1.0 / W, 1.0 / H);
-      gl.uniform1f(gl.getUniformLocation(simProg, "u_gravityPx"), 0.002 * H);
-      gl.uniform1f(gl.getUniformLocation(simProg, "u_diff"), 0.1);
+      gl.uniform1f(gl.getUniformLocation(simProg, "u_gravityPx"), 1.0);
+      gl.uniform1f(gl.getUniformLocation(simProg, "u_diff"), 0.15);
       gl.uniform1f(gl.getUniformLocation(simProg, "u_decay"), 0.0009);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 

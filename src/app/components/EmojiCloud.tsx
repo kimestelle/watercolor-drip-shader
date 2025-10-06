@@ -109,76 +109,46 @@ function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> })
         }}, 500);
         return () => clearInterval(interval);
     }, [emojiRef]);
+ useEffect(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
 
-    useEffect(() => {
-        const handle = (e: MouseEvent) => {
-        if (!containerRef.current) return;
-            const rect = containerRef.current.getBoundingClientRect();
-            const dpr = adaptiveDpr();
+  const dpr = adaptiveDpr();
 
-            mouseRef.current = {
-            x: (e.clientX - rect.left) * dpr,
-            y: (e.clientY - rect.top) * dpr
-            };
-        };
-        window.addEventListener("mousemove", handle);
-        return () => window.removeEventListener("mousemove", handle);
-    }, []);
+  const handleDown = (e: PointerEvent) => {
+    if (e.pointerType === "touch") e.preventDefault();
+    const rect = canvas.getBoundingClientRect(); // compute fresh each time
+    canvas.setPointerCapture(e.pointerId);
+    mouseRef.current = {
+      x: (e.clientX - rect.left) * dpr,
+      y: (e.clientY - rect.top) * dpr
+    };
+  };
 
-    //same thing with touch drag
-    useEffect(() => {
-        const canvas = containerRef.current;
-        if (!canvas) return;
+  const handleMove = (e: PointerEvent) => {
+    if (e.pointerType === "touch") e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    mouseRef.current = {
+      x: (e.clientX - rect.left) * dpr,
+      y: (e.clientY - rect.top) * dpr
+    };
+  };
 
-        const dpr = adaptiveDpr();
-        let dragging = false;
+  const handleUp = (e: PointerEvent) => {
+    canvas.releasePointerCapture(e.pointerId);
+  };
 
-        const getPos = (e: TouchEvent) => {
-            const rect = canvas.getBoundingClientRect();
-            return {
-            x: (e.touches[0].clientX - rect.left) * dpr,
-            y: (e.touches[0].clientY - rect.top) * dpr,
-            };
-        };
+  // IMPORTANT: mark passive:false on down/move so preventDefault actually works
+  canvas.addEventListener("pointerdown", handleDown, { passive: false });
+  canvas.addEventListener("pointermove", handleMove, { passive: false });
+  canvas.addEventListener("pointerup", handleUp);
 
-        const handleStart = (e: TouchEvent) => {
-        if (e.touches.length > 0) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.touches[0].clientX;
-            const y = e.touches[0].clientY;
-
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-            dragging = true;
-            e.preventDefault(); //only prevent scroll if touch starts inside canvas
-            mouseRef.current = {
-                x: (x - rect.left) * dpr,
-                y: (y - rect.top) * dpr,
-            };
-            }
-        }
-        };
-
-        const handleMove = (e: TouchEvent) => {
-            if (!dragging || e.touches.length === 0) return;
-            e.preventDefault();
-            mouseRef.current = getPos(e);
-        };
-
-        const handleEnd = () => {
-            dragging = false;
-        };
-
-        canvas.addEventListener("touchstart", handleStart, { passive: false });
-        window.addEventListener("touchmove", handleMove, { passive: false });
-        window.addEventListener("touchend", handleEnd, { passive: true });
-
-        return () => {
-            canvas.removeEventListener("touchstart", handleStart);
-            window.removeEventListener("touchmove", handleMove);
-            window.removeEventListener("touchend", handleEnd);
-        };
-    }, []);
-
+  return () => {
+    canvas.removeEventListener("pointerdown", handleDown);
+    canvas.removeEventListener("pointermove", handleMove);
+    canvas.removeEventListener("pointerup", handleUp);
+  };
+}, []);
 
     useEffect(() => {
         const handleClick = () => {
@@ -335,7 +305,7 @@ function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> })
 
 
             <div ref={containerRef} className={`w-full h-[60svh] flex-shrink-0 transition-opacity duration-1000 ${dripReady && emojiReady ? "opacity-100" : "opacity-0"}`}>
-                <canvas ref={canvasRef} className="w-full h-full block" />
+                <canvas ref={canvasRef} className="w-full h-full block touch-none select-none" />
             </div>
 
             <canvas ref={stripCanvasRef} className="w-full h-0 block hidden"/>

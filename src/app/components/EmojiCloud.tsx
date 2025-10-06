@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { loadEmojis } from "./emojiLoader";
 import DripCanvas from "./DripCanvas";
 
@@ -29,16 +29,27 @@ type FallingEmoji = {
   vy: number;
 };
 
-export default function EmojiCloudCanvas() {
+function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> }) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const stripCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
     const mouseRef = useRef({ x: 0, y: 0 });
+    const mouseColorRef = useRef(false);
+
     const fallingEmojisRef = useRef<FallingEmoji[]>([]);
     const cloudEmojisRef = useRef<string[][]>([]);
 
     const [dripReady, setDripReady] = useState(false);
+    const [emojiReady, setEmojiReady] = useState(false);
+
+    //adapt dpr to device and cap
+    function adaptiveDpr(multiplier = 0.9) {
+        const rawDpr = window.devicePixelRatio || 1;
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        const maxDpr = isMobile ? 1.5 : 2.5;
+        return Math.min(rawDpr * multiplier, maxDpr);
+    }
 
     useEffect(() => {
         const init = async () => {
@@ -77,8 +88,13 @@ export default function EmojiCloudCanvas() {
           
             if (cloudGrid[i][j] === 1 && (Math.random() < 0.006 || inside)) {
                 const oldEmoji = cloud[i][j];
-                const newEmoji = emojis[Math.floor(Math.random() * emojis.length)].unicode;
 
+                let newEmoji = "";
+                if (emojiRef.current.length === 0) {
+                    newEmoji = emojis[Math.floor(Math.random() * emojis.length)].unicode;
+                } else {
+                    newEmoji = emojiRef.current[Math.floor(Math.random() * emojiRef.current.length)];
+                }
 
                 if ((oldEmoji) || inside) {
                 fallingEmojisRef.current.push({
@@ -92,13 +108,13 @@ export default function EmojiCloudCanvas() {
             }}
         }}, 500);
         return () => clearInterval(interval);
-    }, []);
+    }, [emojiRef]);
 
     useEffect(() => {
         const handle = (e: MouseEvent) => {
         if (!containerRef.current) return;
             const rect = containerRef.current.getBoundingClientRect();
-            const dpr = window.devicePixelRatio * 0.7 || 1;
+            const dpr = adaptiveDpr();
 
             mouseRef.current = {
             x: (e.clientX - rect.left) * dpr,
@@ -109,6 +125,14 @@ export default function EmojiCloudCanvas() {
         return () => window.removeEventListener("mousemove", handle);
     }, []);
 
+    useEffect(() => {
+        const handleClick = () => {
+            mouseColorRef.current = !mouseColorRef.current;
+        };
+        window.addEventListener("click", handleClick);
+        return () => window.removeEventListener("click", handleClick);
+    }, []);
+
   // animation loop
     useEffect(() => {
         const canvas = canvasRef.current!;
@@ -116,10 +140,10 @@ export default function EmojiCloudCanvas() {
         const strip = stripCanvasRef.current!;
         const ctx = canvas.getContext("2d")!;
         const stripCtx = strip.getContext("2d")!;
+        const dpr = adaptiveDpr();
 
         // resize with debounce
         const resize = () => {
-            const dpr = window.devicePixelRatio * 0.7 || 1;
             const w = container.clientWidth * dpr;
             const h = container.clientHeight * dpr;
             canvas.width = w;
@@ -152,6 +176,27 @@ export default function EmojiCloudCanvas() {
             const offsetX = (w - gridCols * cellSize) / 2;
             const offsetY = (h - gridRows * cellSize) / 4;
 
+            //draw mouse color if enabled
+            if (mouseColorRef.current) {
+                const hue = (Date.now() / 20) % 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                ctx.beginPath();
+
+                const edgeMargin = 50 * dpr;
+                const baseRadius = cellSize * 0.8 * dpr;
+                const distToEdge = Math.min(mouseRef.current.x, w - mouseRef.current.x);
+                const ratio = Math.max(0, Math.min(1, distToEdge / edgeMargin));
+                const radius = baseRadius * ratio;
+
+                if (radius > 0) {
+                    ctx.beginPath();
+                    ctx.arc(mouseRef.current.x, mouseRef.current.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fill();
+            }
+
             ctx.font = `${cellSize}px serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
@@ -171,14 +216,13 @@ export default function EmojiCloudCanvas() {
 
             // falling emojis
             fallingEmojisRef.current.forEach(e => {
-                const dpr = window.devicePixelRatio * 0.7 || 1;
-                const dx = e.x - mouseRef.current.x * dpr;
-                const dy = e.y - mouseRef.current.y * dpr;
+                const dx = e.x - mouseRef.current.x;
+                const dy = e.y - mouseRef.current.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist < 70 && dist > 0) {
                     const force = (70 - dist)/70 * 0.2;
                     e.vx += (dx/dist) * force;
-                    e.vy += (dy/dist) * force * (0.05 * dpr);
+                    e.vy += (dy/dist) * force + 0.1;
                 }
                 e.x += e.vx;
                 e.y += e.vy;
@@ -193,30 +237,59 @@ export default function EmojiCloudCanvas() {
             }
         }
 
+        if (cloudEmojisRef.current.length) setEmojiReady(true);
+
         requestAnimationFrame(animate);
         };
+
 
         animate();
         return () => observer.disconnect();
     }, []);
 
-    return (
-        <div className="relative w-full h-screen max-w-[100svh] px-5 flex flex-col items-center">
-            {!dripReady && (
-            <div className="absolute flex justify-center items-center w-full h-full bg-white/50 z-[10] top-5 text-center w-full px-5">
-                <h1>Loading...</h1>
-            </div>
-            )}
+    const handleReady = useCallback(() => {
+        setDripReady(true);
+    }, []);
 
-            <div ref={containerRef} className="w-full h-[60svh] flex-shrink-0">
+    return (
+        <div className="w-full h-full max-w-[100svh] px-5 flex flex-col justify-center items-center">
+            {/* loader */}
+            <div
+            className={`
+                absolute flex flex-col justify-center items-center 
+                w-screen h-screen top-0 
+                text-center px-5 z-[30] 
+                bg-black/50 backdrop-blur-xl transition-opacity duration-1000
+                ${(!dripReady || !emojiReady) ? "opacity-100" : "opacity-0 pointer-events-none"}
+            `}
+            >
+            <h1>cloudy with a chance of...</h1>
+            {/* loading bar */}
+            <div className="w-full max-w-sm h-1 border border-[#adff2f] rounded-full overflow-hidden mt-5">
+                <div className={`
+                    h-full bg-gradient-to-r from-transparent to-[#adff2f]
+                    animate-gradient-x
+                    ${(!dripReady || !emojiReady) ? "w-2/3" : "w-full"}
+                    transition-all duration-1000
+                `}/>
+            </div>
+            <p className="mt-3">
+                { !emojiReady ? "Loading emojis..." : !dripReady ? "Preparing canvas..." : "Ready!" }
+            </p>
+            </div>
+
+
+            <div ref={containerRef} className={`w-full h-[60svh] flex-shrink-0 transition-opacity duration-1000 ${dripReady && emojiReady ? "opacity-100" : "opacity-0"}`}>
                 <canvas ref={canvasRef} className="w-full h-full block" />
             </div>
 
             <canvas ref={stripCanvasRef} className="w-full h-0 block hidden"/>
 
-            <div className="w-full flex-1">
-                <DripCanvas source={stripCanvasRef} onReady={() => setDripReady(true)}/>
+            <div className={`w-full flex-1 transition-opacity duration-1000 ${dripReady && emojiReady ? "opacity-100" : "opacity-0"}`}>
+                <DripCanvas source={stripCanvasRef} onReady={handleReady}/>
             </div>
         </div>
     );
 }
+
+export default React.memo(EmojiCloudCanvas);

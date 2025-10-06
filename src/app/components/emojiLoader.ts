@@ -19,7 +19,9 @@ export async function loadEmojis(): Promise<EmojiMapping[]> {
 
         const unicodeHex = fields[0].split(" ");
         const codePoints = unicodeHex.map(cp => parseInt(cp, 16));
-        const unicode = String.fromCodePoint(...codePoints);
+        const emojiRegex = /\p{Extended_Pictographic}/u;
+        let unicode = String.fromCodePoint(...codePoints);
+        if (!emojiRegex.test(unicode)) unicode = "☁️"; //fallback for weird characters
 
         return {
             unicode,

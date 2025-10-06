@@ -11,14 +11,53 @@ export default function DripCanvas({
   onReady?: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  //first frame tracker for loader screen
   const firstFrame = useRef(true);
+
+  //store refs to be able to reset watercolor drip
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const texARef = useRef<WebGLTexture | null>(null);
+  const texBRef = useRef<WebGLTexture | null>(null);
+  const fbARef = useRef<WebGLFramebuffer | null>(null);
+  const fbBRef = useRef<WebGLFramebuffer | null>(null);
+
+  const resetDrip = () => {
+    const gl = glRef.current;
+    if (!gl) return;
+
+    const clearFramebuffer = (fb: WebGLFramebuffer | null) => {
+      if (!fb) return;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    };
+
+    const clearTexture = (tex: WebGLTexture | null) => {
+      if (!tex) return;
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      const width = canvasRef.current?.width || 1;
+      const height = canvasRef.current?.height || 1;
+      const empty = new Uint8Array(width * height * 4); // RGBA
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, empty);
+    }
+
+    clearFramebuffer(fbARef.current);
+    clearFramebuffer(fbBRef.current);
+
+    clearTexture(texARef.current);
+    clearTexture(texBRef.current);
+
+    // restore default framebuffer
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  };
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !source.current) return;
     const gl = canvas.getContext("webgl", { alpha: true });
     if (!gl) return;
+    glRef.current = gl;
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -89,7 +128,6 @@ export default function DripCanvas({
       return { tex, fb };
     };
 
-    let texA: WebGLTexture, texB: WebGLTexture, fbA: WebGLFramebuffer, fbB: WebGLFramebuffer;
     const resizeSim = () => {
       W = canvas.clientWidth;
       H = canvas.clientHeight;
@@ -97,8 +135,14 @@ export default function DripCanvas({
       canvas.height = H;
       gl.viewport(0, 0, W, H);
 
-      ({ tex: texA, fb: fbA } = createFramebufferTex(W, H));
-      ({ tex: texB, fb: fbB } = createFramebufferTex(W, H));
+      ({ tex: texARef.current, fb: fbARef.current } = createFramebufferTex(W, H));
+      ({ tex: texBRef.current, fb: fbBRef.current } = createFramebufferTex(W, H));
+
+      fbARef.current = fbARef.current;
+      fbBRef.current = fbBRef.current;
+      texARef.current = texARef.current;
+      texBRef.current = texBRef.current;
+
       helper.width = W;
       helper.height = 1;
     };
@@ -144,7 +188,7 @@ export default function DripCanvas({
           }
         }
 
-        gl.bindTexture(gl.TEXTURE_2D, texA);
+        gl.bindTexture(gl.TEXTURE_2D, texARef.current);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, 1, gl.RGBA, gl.UNSIGNED_BYTE, row.data
         );
       }
@@ -152,11 +196,11 @@ export default function DripCanvas({
       // SIM pass
       gl.useProgram(simProg);
       setupAttributes(simProg);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbB);
-      gl.bindTexture(gl.TEXTURE_2D, texA);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbBRef.current);
+      gl.bindTexture(gl.TEXTURE_2D, texARef.current);
       gl.uniform1i(gl.getUniformLocation(simProg, "u_tex"), 0);
       gl.uniform2f(gl.getUniformLocation(simProg, "u_px"), 1.0 / W, 1.0 / H);
-      gl.uniform1f(gl.getUniformLocation(simProg, "u_gravityPx"), 2.0);
+      gl.uniform1f(gl.getUniformLocation(simProg, "u_gravityPx"), 0.002 * H);
       gl.uniform1f(gl.getUniformLocation(simProg, "u_diff"), 0.1);
       gl.uniform1f(gl.getUniformLocation(simProg, "u_decay"), 0.0009);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -168,7 +212,7 @@ export default function DripCanvas({
 
       //drip texture - 0
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, texB);
+      gl.bindTexture(gl.TEXTURE_2D, texBRef.current);
       gl.uniform1i(gl.getUniformLocation(dispProg, "u_tex"), 0);
 
       //canvas texture - 1
@@ -180,22 +224,24 @@ export default function DripCanvas({
 
 
       // swap
-      [texA, texB] = [texB, texA];
-      [fbA, fbB] = [fbB, fbA];
+      [texARef.current, texBRef.current] = [texBRef.current, texARef.current];
+      [fbARef.current, fbBRef.current] = [fbBRef.current, fbARef.current];
 
       if (firstFrame.current) {
         onReady?.();
         firstFrame.current = false;
       }
 
+
       requestAnimationFrame(frame);
     };
     frame();
-  }, [source, onReady]);
+  });
 
   return <canvas
     ref={canvasRef}
-    className="w-full h-full block bg-transparent"
+    onClick={() => {resetDrip()}}
+    className="w-full h-full relative block bg-transparent"
     style={{ clipPath: "inset(1px 0 0 0)" }}
   />;
 }

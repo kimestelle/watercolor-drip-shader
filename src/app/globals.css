@@ -25,12 +25,69 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+p {
+  font-family: 'Bitcount Single', monospace;
+  color:greenyellow;
+}
+
+h1 {
+  font-family: 'Bitcount Single', monospace;
+  font-size: 2rem;
+  color:#adff2f;
+}
+
+h3 {
+  font-family: 'Bitcount Single', monospace;
+  font-size: 1rem;
+  color:#adff2f;
+}
+
+ul, ol {
+  font-family: 'Bitcount Single', monospace;
+  color:greenyellow;
+  list-style-position: outside;
+}
+
+ul {
+  list-style-type: '-  ';
+  padding-left: 2em;
+}
+
+ol {
+  list-style-type: decimal;
+  padding-left: 2em;
+}
+
+a, .underline {
+  text-decoration: wavy underline;
+  text-decoration-thickness: 0.7px;
+  text-underline-offset: 3px;
+}
+
+a {
+  color: rgb(216, 255, 156);
+  font-weight: bold;
+}
+
+a:hover {
+  color: white;
+}
+
+button {
+  font-family: 'Bitcount Single', monospace;
+  color:greenyellow;
+}
+
+.sky-blend {
+  background-blend-mode: screen;
+}
+
 .parallax-container {
   position: relative;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  perspective: 1000px; /* adds depth */
+  perspective: 1000px;
 }
 
 .layer {

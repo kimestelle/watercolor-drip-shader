@@ -127,46 +127,56 @@ function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> })
 
     //same thing with touch drag
     useEffect(() => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const dpr = adaptiveDpr();
+        const canvas = containerRef.current;
+        if (!canvas) return;
 
-    let dragging = false;
+        const dpr = adaptiveDpr();
+        let dragging = false;
 
-    const handleStart = (e: TouchEvent) => {
-        if (e.touches.length > 0) {
-        dragging = true;
-        mouseRef.current = {
+        const getPos = (e: TouchEvent) => {
+            const rect = canvas.getBoundingClientRect();
+            return {
             x: (e.touches[0].clientX - rect.left) * dpr,
             y: (e.touches[0].clientY - rect.top) * dpr,
+            };
         };
-        }
-    };
 
-    const handleMove = (e: TouchEvent) => {
-        if (!dragging) return;
+        const handleStart = (e: TouchEvent) => {
         if (e.touches.length > 0) {
-        e.preventDefault();
-        mouseRef.current = {
-            x: (e.touches[0].clientX - rect.left) * dpr,
-            y: (e.touches[0].clientY - rect.top) * dpr,
-        };
+            const rect = canvas.getBoundingClientRect();
+            const x = e.touches[0].clientX;
+            const y = e.touches[0].clientY;
+
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            dragging = true;
+            e.preventDefault(); //only prevent scroll if touch starts inside canvas
+            mouseRef.current = {
+                x: (x - rect.left) * dpr,
+                y: (y - rect.top) * dpr,
+            };
+            }
         }
-    };
+        };
 
-    const handleEnd = () => {
-        dragging = false;
-    };
+        const handleMove = (e: TouchEvent) => {
+            if (!dragging || e.touches.length === 0) return;
+            e.preventDefault();
+            mouseRef.current = getPos(e);
+        };
 
-    window.addEventListener("touchstart", handleStart, { passive: false });
-    window.addEventListener("touchmove", handleMove, { passive: false });
-    window.addEventListener("touchend", handleEnd, { passive: true });
+        const handleEnd = () => {
+            dragging = false;
+        };
 
-    return () => {
-        window.removeEventListener("touchstart", handleStart);
-        window.removeEventListener("touchmove", handleMove);
-        window.removeEventListener("touchend", handleEnd);
-    };
+        canvas.addEventListener("touchstart", handleStart, { passive: false });
+        window.addEventListener("touchmove", handleMove, { passive: false });
+        window.addEventListener("touchend", handleEnd, { passive: true });
+
+        return () => {
+            canvas.removeEventListener("touchstart", handleStart);
+            window.removeEventListener("touchmove", handleMove);
+            window.removeEventListener("touchend", handleEnd);
+        };
     }, []);
 
 

@@ -125,6 +125,51 @@ function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> })
         return () => window.removeEventListener("mousemove", handle);
     }, []);
 
+    //same thing with touch drag
+    useEffect(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const dpr = adaptiveDpr();
+
+    let dragging = false;
+
+    const handleStart = (e: TouchEvent) => {
+        if (e.touches.length > 0) {
+        dragging = true;
+        mouseRef.current = {
+            x: (e.touches[0].clientX - rect.left) * dpr,
+            y: (e.touches[0].clientY - rect.top) * dpr,
+        };
+        }
+    };
+
+    const handleMove = (e: TouchEvent) => {
+        if (!dragging) return;
+        if (e.touches.length > 0) {
+        e.preventDefault();
+        mouseRef.current = {
+            x: (e.touches[0].clientX - rect.left) * dpr,
+            y: (e.touches[0].clientY - rect.top) * dpr,
+        };
+        }
+    };
+
+    const handleEnd = () => {
+        dragging = false;
+    };
+
+    window.addEventListener("touchstart", handleStart, { passive: false });
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleEnd, { passive: true });
+
+    return () => {
+        window.removeEventListener("touchstart", handleStart);
+        window.removeEventListener("touchmove", handleMove);
+        window.removeEventListener("touchend", handleEnd);
+    };
+    }, []);
+
+
     useEffect(() => {
         const handleClick = () => {
             mouseColorRef.current = !mouseColorRef.current;

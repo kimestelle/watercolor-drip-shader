@@ -202,7 +202,7 @@ export default function DripCanvas({
       gl.uniform2f(gl.getUniformLocation(simProg, "u_px"), 1.0 / W, 1.0 / H);
       gl.uniform1f(gl.getUniformLocation(simProg, "u_gravityPx"), 1.0);
       gl.uniform1f(gl.getUniformLocation(simProg, "u_diff"), 0.15);
-      gl.uniform1f(gl.getUniformLocation(simProg, "u_decay"), 0.0009);
+      gl.uniform1f(gl.getUniformLocation(simProg, "u_decay"), 0.0005);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
       // DISPLAY pass
@@ -222,7 +222,6 @@ export default function DripCanvas({
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-
       // swap
       [texARef.current, texBRef.current] = [texBRef.current, texARef.current];
       [fbARef.current, fbBRef.current] = [fbBRef.current, fbARef.current];
@@ -241,7 +240,7 @@ export default function DripCanvas({
   return <canvas
     ref={canvasRef}
     onClick={() => {resetDrip()}}
-    className="w-full h-full relative block bg-transparent"
+    className="w-full h-full relative block bg-transparent border-b border-white"
     style={{ clipPath: "inset(1px 0 0 0)" }}
   />;
 }

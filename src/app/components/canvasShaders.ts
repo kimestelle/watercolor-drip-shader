@@ -20,7 +20,6 @@
       void main() {
         float g = u_gravityPx * u_px.y;
         vec2 advUv = v_uv - vec2(0.0, g);
-        advUv.y = clamp(advUv.y, 0.0, 1.0);
         vec4 adv = texture2D(u_tex, advUv);
         vec4 cur = texture2D(u_tex, v_uv);
 
@@ -51,7 +50,7 @@
     uniform sampler2D u_canvas;  // paper texture
 
     void main() {
-        vec4 drip   = texture2D(u_tex, vec2(v_uv.x, 1.0 - v_uv.y));
+        vec4 drip = texture2D(u_tex, vec2(v_uv.x, 1.0 - v_uv.y));
         vec4 canvas = texture2D(u_canvas, v_uv);
 
         // alpha as density

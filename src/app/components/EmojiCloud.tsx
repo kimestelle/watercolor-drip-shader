@@ -109,46 +109,46 @@ function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> })
         }}, 500);
         return () => clearInterval(interval);
     }, [emojiRef]);
- useEffect(() => {
-  const canvas = canvasRef.current;
-  if (!canvas) return;
 
-  const dpr = adaptiveDpr();
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-  const handleDown = (e: PointerEvent) => {
-    if (e.pointerType === "touch") e.preventDefault();
-    const rect = canvas.getBoundingClientRect(); // compute fresh each time
-    canvas.setPointerCapture(e.pointerId);
-    mouseRef.current = {
-      x: (e.clientX - rect.left) * dpr,
-      y: (e.clientY - rect.top) * dpr
+        const dpr = adaptiveDpr();
+
+        const handleDown = (e: PointerEvent) => {
+            if (e.pointerType === "touch") e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            canvas.setPointerCapture(e.pointerId);
+            mouseRef.current = {
+            x: (e.clientX - rect.left) * dpr,
+            y: (e.clientY - rect.top) * dpr
+            };
+        };
+
+        const handleMove = (e: PointerEvent) => {
+            if (e.pointerType === "touch") e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            mouseRef.current = {
+            x: (e.clientX - rect.left) * dpr,
+            y: (e.clientY - rect.top) * dpr
+            };
+        };
+
+        const handleUp = (e: PointerEvent) => {
+            canvas.releasePointerCapture(e.pointerId);
+        };
+
+    canvas.addEventListener("pointerdown", handleDown, { passive: false });
+    canvas.addEventListener("pointermove", handleMove, { passive: false });
+    canvas.addEventListener("pointerup", handleUp);
+
+    return () => {
+        canvas.removeEventListener("pointerdown", handleDown);
+        canvas.removeEventListener("pointermove", handleMove);
+        canvas.removeEventListener("pointerup", handleUp);
     };
-  };
-
-  const handleMove = (e: PointerEvent) => {
-    if (e.pointerType === "touch") e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    mouseRef.current = {
-      x: (e.clientX - rect.left) * dpr,
-      y: (e.clientY - rect.top) * dpr
-    };
-  };
-
-  const handleUp = (e: PointerEvent) => {
-    canvas.releasePointerCapture(e.pointerId);
-  };
-
-  // IMPORTANT: mark passive:false on down/move so preventDefault actually works
-  canvas.addEventListener("pointerdown", handleDown, { passive: false });
-  canvas.addEventListener("pointermove", handleMove, { passive: false });
-  canvas.addEventListener("pointerup", handleUp);
-
-  return () => {
-    canvas.removeEventListener("pointerdown", handleDown);
-    canvas.removeEventListener("pointermove", handleMove);
-    canvas.removeEventListener("pointerup", handleUp);
-  };
-}, []);
+    }, []);
 
     useEffect(() => {
         const handleClick = () => {
@@ -157,6 +157,76 @@ function EmojiCloudCanvas({ emojiRef }: { emojiRef: React.RefObject<string[]> })
         window.addEventListener("click", handleClick);
         return () => window.removeEventListener("click", handleClick);
     }, []);
+
+    useEffect(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+
+  const handleReleaseAll = async (e: PointerEvent) => {
+
+        const rect = canvas.getBoundingClientRect();
+        const dpr = adaptiveDpr();
+        const x = (e.clientX - rect.left) * dpr;
+        const y = (e.clientY - rect.top) * dpr;
+
+        const cloud = cloudEmojisRef.current;
+        //return if no cloud or if falling emoji array is too long
+        if (!cloud.length || fallingEmojisRef.current.length > 90) return;
+
+        const gridRows = cloud.length;
+        const gridCols = cloud[0].length;
+        const cellSize = canvas.width / gridCols * 0.4;
+        const offsetX = (canvas.width - gridCols * cellSize) / 2;
+        const offsetY = (canvas.height - gridRows * cellSize) / 4;
+
+        // cloud bounding box
+        const cloudLeft = offsetX;
+        const cloudTop = offsetY;
+        const cloudRight = offsetX + gridCols * cellSize;
+        const cloudBottom = offsetY + gridRows * cellSize;
+
+        if (x < cloudLeft || x > cloudRight || y < cloudTop || y > cloudBottom) return;
+
+        const emojis = await loadEmojis();
+
+        // loop through every cell and replace
+        for (let i = 0; i < gridRows; i++) {
+            for (let j = 0; j < gridCols; j++) {
+                if (cloudGrid[i][j] !== 1) continue;
+
+                const cx = offsetX + j * cellSize;
+                const cy = offsetY + i * cellSize;
+                const oldEmoji = cloud[i][j];
+
+                let newEmoji = "";
+                if (emojiRef.current.length === 0) {
+                newEmoji = emojis[Math.floor(Math.random() * emojis.length)].unicode;
+                } else {
+                newEmoji = emojiRef.current[Math.floor(Math.random() * emojiRef.current.length)];
+                }
+
+                if (oldEmoji) {
+                fallingEmojisRef.current.push({
+                    char: oldEmoji,
+                    x: cx + cellSize / 2,
+                    y: cy + cellSize / 2,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: 2 + Math.random() * 2,
+                });
+                }
+
+                cloud[i][j] = newEmoji;
+            }
+        }
+    };
+
+    canvas.addEventListener("pointerdown", handleReleaseAll, { passive: false });
+
+    return () => {
+        canvas.removeEventListener("pointerdown", handleReleaseAll);
+    };
+    }, [emojiRef]);
+
 
   // animation loop
     useEffect(() => {

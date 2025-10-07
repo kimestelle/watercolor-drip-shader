@@ -8,12 +8,13 @@ export default function InfoModule({ closeModule }: InfoModuleProps) {
             onClick={closeModule}>
                 Close
             </button>
-            <p>this is an interactive webgl experiment. play with it!</p>
+            <p>this is an interactive webgl experiment. let&apos;s play!</p>
             <p className="mb-2">made with &#x2764; by <span><a href="https://www.estellekimdev.com/" target="_blank">estelle kim</a></span></p>
             <p className="font-semibold mt-4 mb-2">* how to play *</p>
             <ul className="list-disc list-inside mb-4">
                 <li><span className='underline'>click the boxes</span> above to select emojis</li>
                 <li><span className='underline'>hover on cloud cells</span> to drop emojis</li>
+                <li>& <span className='underline'>click the cloud</span> to make it pour</li>
                 <li><span className='underline'>click the canvas</span> to reset it</li>
                 <li><span className='underline'>click the sky</span> to toggle paint mode</li>
             </ul>

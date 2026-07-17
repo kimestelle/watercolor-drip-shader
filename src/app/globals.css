@@ -107,6 +107,7 @@ button {
   background-image: url('/sky2.jpg');
   z-index: 1;
   background-position: center 80%;
+  filter: blur(15px);
 }
 
 /* .clouds {
